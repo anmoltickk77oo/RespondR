@@ -1,9 +1,14 @@
 const express = require('express');
+const { getAllIncidents, updateIncident } = require('../controllers/incidentController');
+const { verifyToken } = require('../middleware/authMiddleware');
+
 const router = express.Router();
 
-// Placeholder for Incident routes
-router.get('/', (req, res) => {
-    res.json({ message: 'Incident endpoint ready' });
-});
+// GET /api/incidents -> fetch all incidents
+router.get('/', verifyToken, getAllIncidents);
+
+// PATCH /api/incidents/:id -> update incident status
+router.patch('/:id', verifyToken, updateIncident);
 
 module.exports = router;
+

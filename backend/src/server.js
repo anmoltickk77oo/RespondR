@@ -5,7 +5,8 @@ require('dotenv').config();
 
 const { connectDB } = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
-const sosRoutes = require('./routes/sosRoutes'); // NEW: Import SOS routes
+const sosRoutes = require('./routes/sosRoutes');
+const incidentRoutes = require('./routes/incidentRoutes');
 const { initializeSocket } = require('./sockets/index');
 
 const app = express();
@@ -17,7 +18,8 @@ app.use(express.json());
 connectDB();
 
 app.use('/api/auth', authRoutes);
-app.use('/api/sos', sosRoutes); // NEW: Tell app to use SOS routes
+app.use('/api/sos', sosRoutes);
+app.use('/api/incidents', incidentRoutes);
 
 initializeSocket(server);
 

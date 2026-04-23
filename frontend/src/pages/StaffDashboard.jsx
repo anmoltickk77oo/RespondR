@@ -12,7 +12,7 @@ const StaffDashboard = () => {
         // Fetch existing incidents on mount
         const fetchIncidents = async () => {
             try {
-                const response = await api.get('/sos');
+                const response = await api.get('/incidents');
                 setIncidents(response.data.incidents);
             } catch (error) {
                 console.error('Failed to fetch incidents:', error);
@@ -45,7 +45,7 @@ const StaffDashboard = () => {
 
     const handleAcknowledge = async (id) => {
         try {
-            await api.patch(`/sos/${id}`, { status: 'acknowledged' });
+            await api.patch(`/incidents/${id}`, { status: 'acknowledged' });
             // The socket will broadcast the update and update our state
         } catch (error) {
             console.error('Failed to acknowledge incident:', error);
