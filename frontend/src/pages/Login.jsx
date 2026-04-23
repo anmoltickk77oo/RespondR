@@ -15,13 +15,14 @@ const Login = () => {
         setError('');
 
         try {
-            const endpoint = isRegistering ? '/auth/register' : '/auth/login';
-            const payload = isRegistering
-                ? { ...formData, name: formData.email.split('@')[0] }
-                : formData;
-
-            const response = await api.post(endpoint, payload);
-            login(response.data.user, response.data.token);
+            if (isRegistering) {
+                // Register first
+                const payload = { ...formData, name: formData.email.split('@')[0] };
+                await api.post('/auth/register', payload);
+            }
+            
+            // Whether we just registered or are logging in, we use the context's login function
+            await login(formData.email, formData.password);
             navigate('/');
         } catch (err) {
             setError(err.response?.data?.message || 'Authentication failed');

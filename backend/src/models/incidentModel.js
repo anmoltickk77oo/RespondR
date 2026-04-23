@@ -11,4 +11,21 @@ const createIncident = async (userId, location, incidentType) => {
     return result.rows[0];
 };
 
-module.exports = { createIncident };
+// Fetch all active/pending incidents, newest first
+const getIncidents = async () => {
+    const result = await pool.query(
+        `SELECT * FROM incidents ORDER BY id DESC`
+    );
+    return result.rows;
+};
+
+// Update incident status (e.g., pending -> acknowledged)
+const updateIncidentStatus = async (id, status) => {
+    const result = await pool.query(
+        `UPDATE incidents SET status = $1 WHERE id = $2 RETURNING *`,
+        [status, id]
+    );
+    return result.rows[0];
+};
+
+module.exports = { createIncident, getIncidents, updateIncidentStatus };

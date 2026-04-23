@@ -1,24 +1,56 @@
 import { useState, useEffect, useContext } from 'react';
 import { socket } from '../socket/socket';
 import { AuthContext } from '../context/AuthContext';
+import api from '../api/api';
+import AlertCard from '../components/AlertCard';
 
 const StaffDashboard = () => {
     const { user, logout } = useContext(AuthContext);
     const [incidents, setIncidents] = useState([]);
 
     useEffect(() => {
-        // 1. Listen for new incidents triggered by ANY user
+        // Fetch existing incidents on mount
+        const fetchIncidents = async () => {
+            try {
+                const response = await api.get('/sos');
+                setIncidents(response.data.incidents);
+            } catch (error) {
+                console.error('Failed to fetch incidents:', error);
+            }
+        };
+
+        fetchIncidents();
+
+        // Listen for new incidents
         socket.on('NEW_INCIDENT', (newIncident) => {
             console.log('🚨 NEW INCIDENT RECEIVED:', newIncident);
-            // Add the new incident to the TOP of the list
             setIncidents((prevIncidents) => [newIncident, ...prevIncidents]);
         });
 
-        // 2. Cleanup the listener when the component unmounts
+        // Listen for incident updates (e.g., status changes)
+        socket.on('INCIDENT_UPDATED', (updatedIncident) => {
+            console.log('🔄 INCIDENT UPDATED:', updatedIncident);
+            setIncidents((prevIncidents) => 
+                prevIncidents.map(inc => 
+                    inc.id === updatedIncident.id ? updatedIncident : inc
+                )
+            );
+        });
+
         return () => {
             socket.off('NEW_INCIDENT');
+            socket.off('INCIDENT_UPDATED');
         };
     }, []);
+
+    const handleAcknowledge = async (id) => {
+        try {
+            await api.patch(`/sos/${id}`, { status: 'acknowledged' });
+            // The socket will broadcast the update and update our state
+        } catch (error) {
+            console.error('Failed to acknowledge incident:', error);
+        }
+    };
 
     return (
         <div className="min-h-screen p-6 bg-gray-100">
@@ -38,19 +70,12 @@ const StaffDashboard = () => {
                         No active emergencies. All clear.
                     </div>
                 ) : (
-                    incidents.map((inc, index) => (
-                        <div key={index} className="flex items-center justify-between p-5 bg-white border-l-8 border-red-500 rounded-lg shadow-md animate-pulse">
-                            <div>
-                                <h3 className="text-xl font-extrabold text-gray-800">{inc.incident_type}</h3>
-                                <p className="text-lg text-gray-600">Location: <span className="font-bold text-black">{inc.location}</span></p>
-                                <p className="mt-2 text-sm font-semibold tracking-wider text-red-500 uppercase">
-                                    Status: {inc.status}
-                                </p>
-                            </div>
-                            <button className="px-6 py-3 font-bold text-white transition-colors bg-yellow-500 rounded shadow hover:bg-yellow-600">
-                                Acknowledge
-                            </button>
-                        </div>
+                    incidents.map((inc) => (
+                        <AlertCard 
+                            key={inc.id} 
+                            incident={inc} 
+                            onAcknowledge={handleAcknowledge} 
+                        />
                     ))
                 )}
             </div>
