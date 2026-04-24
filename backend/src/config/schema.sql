@@ -14,10 +14,10 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS incidents (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
-    type VARCHAR(50) NOT NULL, -- e.g., 'Medical', 'Fire', 'Security'
+    incident_type VARCHAR(50) NOT NULL, -- e.g., 'Medical', 'Fire', 'Security'
     location VARCHAR(255) NOT NULL,
     description TEXT,
-    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'responding', 'resolved')),
+    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'responding', 'resolved', 'acknowledged')),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

@@ -1,5 +1,6 @@
 const { createIncident } = require('../models/incidentModel');
 const { getIo } = require('../sockets/index');
+const { sendSMSAlert } = require('../services/smsService');
 
 const triggerSOS = async (req, res) => {
   try {
@@ -19,7 +20,10 @@ const triggerSOS = async (req, res) => {
     const io = getIo();
     io.emit('NEW_INCIDENT', newIncident);
 
-    // 4. Send success back to the user who pressed the button
+    // 4. Extra Layer: Send SMS to emergency contact (Async, don't block the response)
+    sendSMSAlert(newIncident).catch(err => console.error('SMS Service Error:', err));
+
+    // 5. Send success back to the user who pressed the button
     res.status(201).json({
       message: 'SOS triggered successfully. Help is on the way.',
       incident: newIncident

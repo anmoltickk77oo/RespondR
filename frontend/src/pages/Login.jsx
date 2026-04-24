@@ -1,31 +1,36 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
+import { Mail, Lock, User, ShieldCheck, Loader2 } from 'lucide-react';
 import api from '../api/api';
 import { useAuth } from '../context/AuthContext';
 
 const Login = () => {
-    const [formData, setFormData] = useState({ email: '', password: '' });
+    const [formData, setFormData] = useState({ email: '', password: '', role: 'user' });
     const [isRegistering, setIsRegistering] = useState(false);
-    const [error, setError] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
     const { login } = useAuth();
     const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setError('');
+        setIsLoading(true);
 
         try {
             if (isRegistering) {
-                // Register first
                 const payload = { ...formData, name: formData.email.split('@')[0] };
                 await api.post('/auth/register', payload);
+                toast.success('Account created! Logging you in...');
             }
             
-            // Whether we just registered or are logging in, we use the context's login function
             await login(formData.email, formData.password);
+            toast.success('Welcome back!');
             navigate('/');
         } catch (err) {
-            setError(err.response?.data?.message || 'Authentication failed');
+            const message = err.response?.data?.message || 'Authentication failed';
+            toast.error(message);
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -35,56 +40,67 @@ const Login = () => {
                 {isRegistering ? 'Join RespondR' : 'Welcome Back'}
             </h2>
 
-            {error && (
-                <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-xl text-sm font-medium border border-red-100">
-                    {error}
-                </div>
-            )}
-
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                    <input
-                        type="email"
-                        required
-                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none transition-all"
-                        placeholder="admin@respondr.com"
-                        value={formData.email}
-                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    />
+                    <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                        <input
+                            type="email"
+                            required
+                            className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none transition-all"
+                            placeholder="admin@respondr.com"
+                            value={formData.email}
+                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        />
+                    </div>
                 </div>
 
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                    <input
-                        type="password"
-                        required
-                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none transition-all"
-                        placeholder="••••••••"
-                        value={formData.password}
-                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    />
+                    <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                        <input
+                            type="password"
+                            required
+                            className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none transition-all"
+                            placeholder="••••••••"
+                            value={formData.password}
+                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                        />
+                    </div>
                 </div>
 
                 {isRegistering && (
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                        <select
-                            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-red-500 outline-none"
-                            value={formData.role || 'user'}
-                            onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                        >
-                            <option value="user">Guest (User)</option>
-                            <option value="staff">Responder (Staff)</option>
-                        </select>
+                        <div className="relative">
+                            <ShieldCheck className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                            <select
+                                className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-red-500 outline-none appearance-none bg-white"
+                                value={formData.role || 'user'}
+                                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                            >
+                                <option value="user">Guest (User)</option>
+                                <option value="staff">Responder (Staff)</option>
+                            </select>
+                        </div>
                     </div>
                 )}
 
                 <button
                     type="submit"
-                    className="w-full py-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl shadow-lg shadow-red-100 transition-all active:scale-[0.98]"
+                    disabled={isLoading}
+                    className="w-full py-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl shadow-lg shadow-red-100 transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                 >
-                    {isRegistering ? 'Create Account' : 'Sign In'}
+                    {isLoading ? (
+                        <>
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                            Processing...
+                        </>
+                    ) : (
+                        isRegistering ? 'Create Account' : 'Sign In'
+                    )}
                 </button>
             </form>
 

@@ -1,4 +1,6 @@
 import { useState, useEffect, useContext } from 'react';
+import toast from 'react-hot-toast';
+import { Loader2, Activity, Shield, CheckCircle } from 'lucide-react';
 import { socket } from '../socket/socket';
 import { AuthContext } from '../context/AuthContext';
 import api from '../api/api';
@@ -9,6 +11,7 @@ const AdminDashboard = () => {
     const { user, logout } = useContext(AuthContext);
     const [incidents, setIncidents] = useState([]);
     const [stats, setStats] = useState({ total: 0, pending: 0, acknowledged: 0 });
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -17,12 +20,14 @@ const AdminDashboard = () => {
                 const data = response.data.incidents;
                 setIncidents(data);
                 
-                // Calculate basic stats
                 const pending = data.filter(i => i.status === 'pending').length;
                 const acknowledged = data.filter(i => i.status === 'acknowledged').length;
                 setStats({ total: data.length, pending, acknowledged });
             } catch (error) {
                 console.error('Failed to fetch data:', error);
+                toast.error('Failed to load system stats');
+            } finally {
+                setIsLoading(false);
             }
         };
 
@@ -49,8 +54,10 @@ const AdminDashboard = () => {
     const handleAcknowledge = async (id) => {
         try {
             await api.patch(`/incidents/${id}`, { status: 'acknowledged' });
+            toast.success('Incident resolved');
         } catch (error) {
             console.error('Action failed:', error);
+            toast.error('Failed to update incident');
         }
     };
 
@@ -78,9 +85,14 @@ const AdminDashboard = () => {
                 </div>
 
                 <div className="grid grid-cols-1 gap-6">
-                    {incidents.length === 0 ? (
-                        <div className="bg-white rounded-2xl p-12 text-center shadow-sm border border-gray-100">
-                            <p className="text-gray-400 text-lg">No incident logs found.</p>
+                    {isLoading ? (
+                        <div className="flex flex-col items-center justify-center p-20 text-gray-400">
+                            <Loader2 className="w-12 h-12 animate-spin mb-4" />
+                            <p className="font-medium">Fetching system logs...</p>
+                        </div>
+                    ) : incidents.length === 0 ? (
+                        <div className="bg-white rounded-3xl p-16 text-center shadow-sm border border-gray-100">
+                            <p className="text-gray-400 text-lg font-medium">No incident logs found.</p>
                         </div>
                     ) : (
                         incidents.map(inc => (

@@ -1,4 +1,6 @@
 import { useState, useEffect, useContext } from 'react';
+import toast from 'react-hot-toast';
+import { Loader2, LogOut, Radio, Bell } from 'lucide-react';
 import { socket } from '../socket/socket';
 import { AuthContext } from '../context/AuthContext';
 import api from '../api/api';
@@ -7,6 +9,7 @@ import AlertCard from '../components/AlertCard';
 const StaffDashboard = () => {
     const { user, logout } = useContext(AuthContext);
     const [incidents, setIncidents] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         // Fetch existing incidents on mount
@@ -16,6 +19,9 @@ const StaffDashboard = () => {
                 setIncidents(response.data.incidents);
             } catch (error) {
                 console.error('Failed to fetch incidents:', error);
+                toast.error('Failed to load incident feed');
+            } finally {
+                setIsLoading(false);
             }
         };
 
@@ -46,28 +52,49 @@ const StaffDashboard = () => {
     const handleAcknowledge = async (id) => {
         try {
             await api.patch(`/incidents/${id}`, { status: 'acknowledged' });
-            // The socket will broadcast the update and update our state
+            toast.success('Incident acknowledged');
         } catch (error) {
             console.error('Failed to acknowledge incident:', error);
+            toast.error('Action failed. Try again.');
         }
     };
 
     return (
         <div className="min-h-screen p-6 bg-gray-100">
             {/* Header */}
-            <div className="flex items-center justify-between p-4 mb-8 bg-white rounded-lg shadow">
-                <h1 className="text-2xl font-bold text-red-600">🚨 Command Center</h1>
+            <div className="flex items-center justify-between p-4 mb-8 bg-white rounded-2xl shadow-sm border border-gray-100">
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-red-100 rounded-lg">
+                        <Radio className="w-6 h-6 text-red-600 animate-pulse" />
+                    </div>
+                    <h1 className="text-2xl font-bold text-gray-800 tracking-tight">Command Center</h1>
+                </div>
                 <div className="flex items-center gap-4">
-                    <span className="font-semibold text-gray-700">Dispatcher: {user?.name}</span>
-                    <button onClick={logout} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">Logout</button>
+                    <div className="flex flex-col items-end">
+                        <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">On Duty</span>
+                        <span className="font-semibold text-gray-700">{user?.name}</span>
+                    </div>
+                    <button 
+                        onClick={logout} 
+                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                        title="Logout"
+                    >
+                        <LogOut className="w-6 h-6" />
+                    </button>
                 </div>
             </div>
 
             {/* Incident Feed */}
             <div className="flex flex-col gap-4 max-w-4xl mx-auto">
-                {incidents.length === 0 ? (
-                    <div className="p-10 text-center text-gray-500 bg-white rounded-lg shadow">
-                        No active emergencies. All clear.
+                {isLoading ? (
+                    <div className="flex flex-col items-center justify-center p-20 text-gray-400">
+                        <Loader2 className="w-12 h-12 animate-spin mb-4" />
+                        <p className="font-medium">Connecting to live feed...</p>
+                    </div>
+                ) : incidents.length === 0 ? (
+                    <div className="p-16 text-center bg-white rounded-3xl shadow-sm border border-gray-100">
+                        <Bell className="w-12 h-12 text-gray-200 mx-auto mb-4" />
+                        <p className="text-gray-500 font-medium text-lg">No active emergencies. All clear.</p>
                     </div>
                 ) : (
                     incidents.map((inc) => (
