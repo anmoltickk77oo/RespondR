@@ -1,4 +1,5 @@
 import { useState, useContext } from 'react';
+import toast from 'react-hot-toast';
 import { AuthContext } from '../context/AuthContext';
 import SOSButton from '../components/SOSButton';
 
@@ -14,7 +15,7 @@ const UserDashboard = () => {
             {/* Header */}
             <div className="flex items-center justify-between w-full max-w-md px-6 mb-12">
                 <h1 className="text-xl font-bold text-gray-800">Hi, {user?.name}</h1>
-                <button onClick={logout} className="font-semibold text-red-500 hover:underline">Logout</button>
+                <button onClick={() => { logout(); toast.success('Logged out safely'); }} className="font-semibold text-red-500 hover:underline">Logout</button>
             </div>
 
             {/* Quick Context Selectors */}

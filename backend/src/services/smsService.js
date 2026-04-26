@@ -1,17 +1,11 @@
-const twilio = require('twilio');
+/**
+ * TextBee SMS Service
+ * Uses TextBee gateway to send SMS via Android device
+ */
 
-// These will be loaded from your .env file
-const accountSid = process.env.TWILIO_ACCOUNT_SID;
-const authToken = process.env.TWILIO_AUTH_TOKEN;
-const twilioNumber = process.env.TWILIO_PHONE_NUMBER;
-const emergencyContact = process.env.EMERGENCY_CONTACT_NUMBER;
-
-let client;
-
-// Initialize Twilio only if credentials exist
-if (accountSid && authToken) {
-    client = twilio(accountSid, authToken);
-}
+const API_KEY = process.env.TEXTBEE_API_KEY;
+const DEVICE_ID = process.env.TEXTBEE_DEVICE_ID;
+const EMERGENCY_CONTACT = process.env.EMERGENCY_CONTACT_NUMBER;
 
 /**
  * Sends an emergency SMS alert
@@ -19,23 +13,40 @@ if (accountSid && authToken) {
  */
 const sendSMSAlert = async (incident) => {
     try {
-        if (!client) {
-            console.warn('⚠️ Twilio credentials missing. SMS skipped.');
-            return { success: false, message: 'Twilio not configured' };
+        if (!API_KEY || !DEVICE_ID) {
+            console.warn('⚠️ TextBee credentials missing. SMS skipped.');
+            return { success: false, message: 'TextBee not configured' };
+        }
+
+        if (!EMERGENCY_CONTACT) {
+            console.warn('⚠️ Emergency contact number missing. SMS skipped.');
+            return { success: false, message: 'Emergency contact not configured' };
         }
 
         const messageBody = `🚨 EMERGENCY ALERT: ${incident.incident_type} reported at ${incident.location}. Status: PENDING. Respond immediately!`;
 
-        const message = await client.messages.create({
-            body: messageBody,
-            from: twilioNumber,
-            to: emergencyContact
+        const response = await fetch(`https://api.textbee.dev/api/v1/gateway/devices/${DEVICE_ID}/send-sms`, {
+            method: 'POST',
+            headers: {
+                'x-api-key': API_KEY,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                recipients: [EMERGENCY_CONTACT],
+                message: messageBody
+            })
         });
 
-        console.log(`✅ SMS Sent: ${message.sid}`);
-        return { success: true, sid: message.sid };
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || `HTTP error! status: ${response.status}`);
+        }
+
+        console.log(`✅ TextBee SMS Sent Successfully`);
+        return { success: true, data };
     } catch (error) {
-        console.error('❌ Failed to send SMS:', error.message);
+        console.error('❌ Failed to send TextBee SMS:', error.message);
         return { success: false, error: error.message };
     }
 };

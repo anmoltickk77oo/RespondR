@@ -9,8 +9,19 @@ const Login = () => {
     const [formData, setFormData] = useState({ email: '', password: '', role: 'user' });
     const [isRegistering, setIsRegistering] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const { login } = useAuth();
+    const { login, user, loading } = useAuth();
     const navigate = useNavigate();
+
+    // If already logged in, send them to their dashboard
+    React.useEffect(() => {
+        if (!loading && user) {
+            if (user.role === 'staff' || user.role === 'admin') {
+                navigate('/staff');
+            } else {
+                navigate('/user');
+            }
+        }
+    }, [user, loading, navigate]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -23,9 +34,15 @@ const Login = () => {
                 toast.success('Account created! Logging you in...');
             }
             
-            await login(formData.email, formData.password);
+            const loggedInUser = await login(formData.email, formData.password);
             toast.success('Welcome back!');
-            navigate('/');
+            
+            // Redirect based on role
+            if (loggedInUser.role === 'staff' || loggedInUser.role === 'admin') {
+                navigate('/staff');
+            } else {
+                navigate('/user');
+            }
         } catch (err) {
             const message = err.response?.data?.message || 'Authentication failed';
             toast.error(message);

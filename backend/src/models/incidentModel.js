@@ -22,7 +22,10 @@ const getIncidents = async () => {
 // Update incident status (e.g., pending -> acknowledged)
 const updateIncidentStatus = async (id, status) => {
     const result = await pool.query(
-        `UPDATE incidents SET status = $1 WHERE id = $2 RETURNING *`,
+        `UPDATE incidents 
+         SET status = $1 
+         WHERE id = $2 
+         RETURNING incidents.*, (SELECT email FROM users WHERE id = incidents.user_id) as user_email`,
         [status, id]
     );
     return result.rows[0];

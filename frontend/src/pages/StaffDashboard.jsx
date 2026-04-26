@@ -1,6 +1,6 @@
 import { useState, useEffect, useContext } from 'react';
 import toast from 'react-hot-toast';
-import { Loader2, LogOut, Radio, Bell } from 'lucide-react';
+import { Loader2, LogOut, Radio, Bell, Volume2 } from 'lucide-react';
 import { socket } from '../socket/socket';
 import { AuthContext } from '../context/AuthContext';
 import api from '../api/api';
@@ -12,6 +12,11 @@ const StaffDashboard = () => {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
+        // 1. Request browser notification permission on load
+        if ('Notification' in window && Notification.permission !== 'granted') {
+            Notification.requestPermission();
+        }
+
         // Fetch existing incidents on mount
         const fetchIncidents = async () => {
             try {
@@ -27,17 +32,42 @@ const StaffDashboard = () => {
 
         fetchIncidents();
 
-        // Listen for new incidents
+        // 2. Listen for new incidents
         socket.on('NEW_INCIDENT', (newIncident) => {
             console.log('🚨 NEW INCIDENT RECEIVED:', newIncident);
             setIncidents((prevIncidents) => [newIncident, ...prevIncidents]);
+
+            // Play audio alert for 3 seconds
+            const audio = new Audio('/MKBAaagAlert.mp3');
+            audio.loop = true;
+            audio.play().catch(e => {
+                console.error('🚨 Audio play blocked by browser. User must interact with the page first:', e.message);
+            });
+            setTimeout(() => {
+                audio.pause();
+                audio.currentTime = 0;
+            }, 3000);
+
+            // Show toast
+            toast.error(`🚨 NEW EMERGENCY: ${newIncident.incident_type}`, {
+                duration: 6000,
+                position: 'top-center',
+            });
+
+            // 3. Trigger the native browser pop-up
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification('🚨 RespondR Emergency', {
+                    body: `${newIncident.incident_type} reported at ${newIncident.location}`,
+                    icon: '/favicon.ico'
+                });
+            }
         });
 
         // Listen for incident updates (e.g., status changes)
         socket.on('INCIDENT_UPDATED', (updatedIncident) => {
             console.log('🔄 INCIDENT UPDATED:', updatedIncident);
-            setIncidents((prevIncidents) => 
-                prevIncidents.map(inc => 
+            setIncidents((prevIncidents) =>
+                prevIncidents.map(inc =>
                     inc.id === updatedIncident.id ? updatedIncident : inc
                 )
             );
@@ -59,6 +89,16 @@ const StaffDashboard = () => {
         }
     };
 
+    const handleTestSound = () => {
+        const audio = new Audio('/MKBAaagAlert.mp3');
+        audio.play()
+            .then(() => toast.success('Audio system active!'))
+            .catch(e => {
+                console.error('Audio test failed:', e);
+                toast.error('Browser blocked audio. Click anywhere first.');
+            });
+    };
+
     return (
         <div className="min-h-screen p-6 bg-gray-100">
             {/* Header */}
@@ -74,8 +114,15 @@ const StaffDashboard = () => {
                         <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">On Duty</span>
                         <span className="font-semibold text-gray-700">{user?.name}</span>
                     </div>
-                    <button 
-                        onClick={logout} 
+                    <button
+                        onClick={handleTestSound}
+                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
+                        title="Test Alert Sound"
+                    >
+                        <Volume2 className="w-6 h-6" />
+                    </button>
+                    <button
+                        onClick={() => { logout(); toast.success('Logged out successfully'); }}
                         className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
                         title="Logout"
                     >
@@ -98,10 +145,10 @@ const StaffDashboard = () => {
                     </div>
                 ) : (
                     incidents.map((inc) => (
-                        <AlertCard 
-                            key={inc.id} 
-                            incident={inc} 
-                            onAcknowledge={handleAcknowledge} 
+                        <AlertCard
+                            key={inc.id}
+                            incident={inc}
+                            onAcknowledge={handleAcknowledge}
                         />
                     ))
                 )}
