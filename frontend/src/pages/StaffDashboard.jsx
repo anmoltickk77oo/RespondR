@@ -243,7 +243,7 @@ const StaffDashboard = () => {
                         </div>
                     </div>
                 </div>
->>>>>>> up_frtnd
+
             </div>
         </div>
     );
