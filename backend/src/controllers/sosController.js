@@ -16,9 +16,20 @@ const triggerSOS = async (req, res) => {
     // 2. Save the emergency to PostgreSQL
     const newIncident = await createIncident(userId, location, incidentType);
 
-    // 3. The Magic: Blast the real-time event to all staff dashboards
+    // 3. The Magic: Blast the real-time event to targeted rooms
     const io = getIo();
-    io.emit('NEW_INCIDENT', newIncident);
+    
+    // Normalize team name for room emission
+    const targetTeam = incidentType.toLowerCase().includes('medical') ? 'medical' :
+                      incidentType.toLowerCase().includes('fire') ? 'fire' :
+                      incidentType.toLowerCase().includes('security') ? 'security' :
+                      incidentType.toLowerCase().includes('maintenance') ? 'maintenance' : 'general';
+
+    // Broadcast to the specific team room (e.g., room:medical)
+    io.to(`room:${targetTeam}`).emit('NEW_INCIDENT', newIncident);
+    
+    // Also broadcast to the admin room
+    io.to('room:admin').emit('NEW_INCIDENT', newIncident);
 
     // 4. Extra Layer: Send SMS to emergency contact (Async, don't block the response)
     sendSMSAlert(newIncident).catch(err => console.error('SMS Service Error:', err));

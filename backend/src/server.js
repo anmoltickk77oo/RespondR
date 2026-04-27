@@ -7,6 +7,7 @@ const { connectDB } = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
 const sosRoutes = require('./routes/sosRoutes');
 const incidentRoutes = require('./routes/incidentRoutes');
+const userRoutes = require('./routes/userRoutes');
 const { initializeSocket } = require('./sockets/index');
 
 const app = express();
@@ -20,6 +21,7 @@ connectDB();
 app.use('/api/auth', authRoutes);
 app.use('/api/sos', sosRoutes);
 app.use('/api/incidents', incidentRoutes);
+app.use('/api/users', userRoutes);
 
 initializeSocket(server);
 

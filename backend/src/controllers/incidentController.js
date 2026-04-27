@@ -3,7 +3,17 @@ const { getIo } = require('../sockets/index');
 
 const getAllIncidents = async (req, res) => {
   try {
-    const incidents = await getIncidents();
+    const { role, team, id: userId } = req.user;
+    let filters = {};
+
+    if (role === 'staff' && team) {
+      filters.team = team;
+    } else if (role === 'user') {
+      filters.userId = userId;
+    }
+    // Admin gets no filters (all incidents)
+
+    const incidents = await getIncidents(filters);
     res.status(200).json({ incidents });
   } catch (error) {
     console.error('Error fetching incidents:', error);
@@ -28,7 +38,16 @@ const updateIncident = async (req, res) => {
 
     // Blast the real-time event so dashboards update
     const io = getIo();
-    io.emit('INCIDENT_UPDATED', updatedIncident);
+    const targetTeam = updatedIncident.incident_type.toLowerCase().includes('medical') ? 'medical' :
+                      updatedIncident.incident_type.toLowerCase().includes('fire') ? 'fire' :
+                      updatedIncident.incident_type.toLowerCase().includes('security') ? 'security' :
+                      updatedIncident.incident_type.toLowerCase().includes('maintenance') ? 'maintenance' : 'general';
+
+    io.to(`room:${targetTeam}`).emit('INCIDENT_UPDATED', updatedIncident);
+    io.to('room:admin').emit('INCIDENT_UPDATED', updatedIncident);
+    
+    // Also emit to the user who reported it (in their private room if we implement it, but for now just broadcast to all if needed or specific room)
+    // For now, let's just use the team and admin rooms as required.
 
     res.status(200).json({
       message: 'Incident updated successfully',

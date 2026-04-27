@@ -4,7 +4,7 @@ const { createUser, getUserByEmail } = require('../models/userModel');
 
 const register = async (req, res) => {
     try {
-        const { name, email, password, role } = req.body;
+        const { name, email, password, role, team } = req.body;
 
         // 1. Check if user already exists
         const existingUser = await getUserByEmail(email);
@@ -17,7 +17,7 @@ const register = async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, salt);
 
         // 3. Save to database
-        const newUser = await createUser(name, email, hashedPassword, role || 'user');
+        const newUser = await createUser(name, email, hashedPassword, role || 'user', team || null);
 
         res.status(201).json({ message: 'User registered successfully', user: newUser });
     } catch (error) {
@@ -44,7 +44,7 @@ const login = async (req, res) => {
 
         // 3. Generate JWT Token (Your "Digital ID Card")
         const token = jwt.sign(
-            { id: user.id, role: user.role },
+            { id: user.id, role: user.role, team: user.team },
             process.env.JWT_SECRET,
             { expiresIn: '1d' } // Token expires in 1 day
         );
@@ -52,7 +52,7 @@ const login = async (req, res) => {
         res.status(200).json({
             message: 'Login successful',
             token,
-            user: { id: user.id, name: user.name, email: user.email, role: user.role }
+            user: { id: user.id, name: user.name, email: user.email, role: user.role, team: user.team }
         });
     } catch (error) {
         console.error(error);

@@ -11,11 +11,31 @@ const createIncident = async (userId, location, incidentType) => {
     return result.rows[0];
 };
 
-// Fetch all active/pending incidents, newest first
-const getIncidents = async () => {
-    const result = await pool.query(
-        `SELECT * FROM incidents ORDER BY id DESC`
-    );
+// Fetch incidents with optional filters, newest first
+const getIncidents = async (filters = {}) => {
+    let query = `SELECT * FROM incidents`;
+    let conditions = [];
+    let values = [];
+
+    if (filters.userId) {
+        conditions.push(`user_id = $${values.length + 1}`);
+        values.push(filters.userId);
+    }
+
+    if (filters.team) {
+        // Mapping incident_type to team name using partial match
+        // e.g. 'Medical Emergency' matches 'medical'
+        conditions.push(`LOWER(incident_type) LIKE LOWER($${values.length + 1})`);
+        values.push(`%${filters.team}%`);
+    }
+
+    if (conditions.length > 0) {
+        query += ` WHERE ` + conditions.join(' AND ');
+    }
+
+    query += ` ORDER BY id DESC`;
+
+    const result = await pool.query(query, values);
     return result.rows;
 };
 
