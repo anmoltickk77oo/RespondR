@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Mail, Lock, ShieldCheck, Loader2, Siren, ArrowRight, CheckCircle2, Shield, Zap, Globe } from 'lucide-react';
@@ -13,7 +13,7 @@ const Login = () => {
     const navigate = useNavigate();
 
     // If already logged in, send them to their dashboard
-    React.useEffect(() => {
+    useEffect(() => {
         if (!loading && user) {
             if (user.role === 'staff' || user.role === 'admin') {
                 navigate('/staff');
