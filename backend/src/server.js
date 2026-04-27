@@ -14,6 +14,7 @@ const authRoutes = require('./routes/authRoutes');
 const sosRoutes = require('./routes/sosRoutes');
 const incidentRoutes = require('./routes/incidentRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const userRoutes = require('./routes/userRoutes');
 const { initializeSocket } = require('./sockets/index');
 const logger = require('./utils/logger');
 
@@ -70,6 +71,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/sos', sosRoutes);
 app.use('/api/incidents', incidentRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/users', userRoutes);
 
 // 7. Real-time Communications
 initializeSocket(server);
