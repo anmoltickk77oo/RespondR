@@ -26,47 +26,63 @@ const SOSButton = ({ location, incidentType }) => {
         }
     };
 
-    return (
-        <div className="relative">
-            {/* Outer Glow Effect */}
-            <div className={`absolute inset-0 rounded-full blur-3xl opacity-20 transition-all duration-500
-                ${status === 'idle' ? 'bg-red-600 animate-pulse' : ''}
-                ${status === 'loading' ? 'bg-yellow-400' : ''}
-                ${status === 'success' ? 'bg-green-500' : ''}
-                ${status === 'error' ? 'bg-gray-900' : ''}`}
-            />
+    const config = {
+        idle:    { bg: "from-rose-600 to-rose-700", border: "border-rose-400/30", ring: "bg-rose-500", glow: "shadow-2xl shadow-rose-500/40" },
+        loading: { bg: "from-amber-500 to-amber-600", border: "border-amber-400/30", ring: "bg-amber-400", glow: "shadow-2xl shadow-amber-500/40" },
+        success: { bg: "from-emerald-500 to-emerald-600", border: "border-emerald-400/30", ring: "bg-emerald-400", glow: "shadow-2xl shadow-emerald-500/40" },
+        error:   { bg: "from-slate-700 to-slate-800", border: "border-slate-600/30", ring: "bg-slate-500", glow: "shadow-2xl shadow-slate-900/40" },
+    };
 
+    const c = config[status];
+
+    return (
+        <div className="relative flex items-center justify-center">
+            {/* Outer animated ring */}
+            {status === 'idle' && (
+                <>
+                    <div className={`absolute w-96 h-96 rounded-full ${c.ring} opacity-[0.03] animate-pulse-ring`} />
+                    <div className={`absolute w-[28rem] h-[28rem] rounded-full ${c.ring} opacity-[0.02] animate-pulse-ring`} style={{ animationDelay: '1s' }} />
+                </>
+            )}
+
+            {/* The Button */}
             <button
                 onClick={handleSOS}
                 disabled={status !== 'idle'}
-                className={`relative w-72 h-72 rounded-full text-5xl font-black text-white shadow-[0_0_50px_-12px_rgba(0,0,0,0.3)] transition-all duration-300 transform active:scale-90 flex flex-col items-center justify-center gap-4 border-8
-                ${status === 'idle' ? 'bg-red-600 hover:bg-red-500 border-red-500/50 cursor-pointer' : ''}
-                ${status === 'loading' ? 'bg-yellow-500 border-yellow-400/50 cursor-wait' : ''}
-                ${status === 'success' ? 'bg-green-600 border-green-500/50' : ''}
-                ${status === 'error' ? 'bg-gray-900 border-gray-800/50' : ''}`}
+                className={`relative w-72 h-72 sm:w-80 sm:h-80 rounded-full bg-gradient-to-br ${c.bg} border-8 ${c.border} ${c.glow}
+                    text-white font-black transition-all duration-500 transform
+                    ${status === 'idle' ? 'cursor-pointer hover:scale-105 active:scale-[0.85] shadow-glow-red' : ''}
+                    ${status === 'loading' ? 'cursor-wait animate-pulse' : ''}
+                    flex flex-col items-center justify-center gap-4
+                    disabled:cursor-default overflow-hidden z-20 group`}
             >
+                {/* Shine effect */}
+                <div className="absolute inset-0 bg-white/10 -translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
+                
                 {status === 'idle' && (
                     <>
-                        <ShieldAlert size={80} strokeWidth={2.5} />
-                        <span className="text-4xl tracking-tighter">SOS</span>
+                        <div className="bg-white/10 p-6 rounded-[2.5rem] backdrop-blur-sm shadow-inner group-hover:scale-110 transition-transform duration-500">
+                            <ShieldAlert size={80} strokeWidth={2.5} className="drop-shadow-2xl" />
+                        </div>
+                        <span className="text-5xl font-black tracking-tighter drop-shadow-2xl uppercase">SOS</span>
                     </>
                 )}
                 {status === 'loading' && (
                     <>
-                        <Loader2 size={80} className="animate-spin" />
-                        <span className="text-2xl uppercase tracking-widest font-bold">Alerting</span>
+                        <Loader2 size={80} strokeWidth={2.5} className="animate-spin drop-shadow-2xl" />
+                        <span className="text-xl uppercase tracking-[0.3em] font-black">Linking...</span>
                     </>
                 )}
                 {status === 'success' && (
                     <>
-                        <CheckCircle2 size={80} />
-                        <span className="text-2xl uppercase tracking-widest font-bold">Sent</span>
+                        <CheckCircle2 size={80} strokeWidth={2.5} className="drop-shadow-2xl animate-bounce" />
+                        <span className="text-xl uppercase tracking-[0.3em] font-black">Broadcast</span>
                     </>
                 )}
                 {status === 'error' && (
                     <>
-                        <AlertTriangle size={80} />
-                        <span className="text-2xl uppercase tracking-widest font-bold">Retry</span>
+                        <AlertTriangle size={80} strokeWidth={2.5} className="drop-shadow-2xl" />
+                        <span className="text-xl uppercase tracking-[0.3em] font-black">Failed</span>
                     </>
                 )}
             </button>

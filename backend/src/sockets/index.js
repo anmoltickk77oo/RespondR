@@ -15,6 +15,25 @@ const initializeSocket = (server) => {
     io.on('connection', (socket) => {
         console.log(`🔌 New client connected: ${socket.id}`);
 
+        // Handle joining rooms
+        socket.on('JOIN_ROOMS', (userData) => {
+            const { role, team } = userData;
+            
+            if (role === 'admin') {
+                socket.join('room:admin');
+                console.log(`👑 Admin ${socket.id} joined room:admin`);
+            } else if (role === 'staff' && team) {
+                const teamRoom = `room:${team.toLowerCase()}`;
+                socket.join(teamRoom);
+                console.log(`👨‍🚒 Staff ${socket.id} joined ${teamRoom}`);
+            } else if (role === 'user') {
+                // Regular users can join their own private room for status updates
+                const userRoom = `room:user:${userData.id}`;
+                socket.join(userRoom);
+                console.log(`👤 User ${socket.id} joined ${userRoom}`);
+            }
+        });
+
         socket.on('disconnect', () => {
             console.log(`❌ Client disconnected: ${socket.id}`);
         });

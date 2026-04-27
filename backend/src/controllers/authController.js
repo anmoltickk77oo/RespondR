@@ -5,7 +5,7 @@ const logger = require('../utils/logger');
 
 const register = async (req, res) => {
     try {
-        const { name, email, password, role } = req.body;
+        const { name, email, password, role, team } = req.body;
 
         const existingUser = await getUserByEmail(email);
         if (existingUser) {
@@ -15,12 +15,13 @@ const register = async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        const newUser = await createUser(name, email, hashedPassword, role || 'user');
+        // Save to database
+        const newUser = await createUser(name, email, hashedPassword, role || 'user', team || null);
 
         res.status(201).json({ 
             status: 'success', 
             message: 'User registered successfully', 
-            user: { id: newUser.id, name: newUser.name, email: newUser.email, role: newUser.role } 
+            user: { id: newUser.id, name: newUser.name, email: newUser.email, role: newUser.role, team: newUser.team } 
         });
     } catch (error) {
         logger.error('Registration Error: %o', error);
@@ -43,7 +44,7 @@ const login = async (req, res) => {
         }
 
         const token = jwt.sign(
-            { id: user.id, role: user.role },
+            { id: user.id, role: user.role, team: user.team },
             process.env.JWT_SECRET,
             { expiresIn: '1d' }
         );
@@ -52,7 +53,7 @@ const login = async (req, res) => {
             status: 'success',
             message: 'Login successful',
             token,
-            user: { id: user.id, name: user.name, email: user.email, role: user.role }
+            user: { id: user.id, name: user.name, email: user.email, role: user.role, team: user.team }
         });
     } catch (error) {
         logger.error('Login Error: %o', error);
