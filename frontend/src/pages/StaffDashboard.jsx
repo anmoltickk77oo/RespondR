@@ -8,12 +8,18 @@ import api from "../api/api";
 import AlertCard from "../components/AlertCard";
 import Navbar from "../components/Navbar";
 import { useAuth } from "../context/AuthContext";
+import LiveMap from "../components/LiveMap";
+import { useGeolocation } from "../hooks/useGeolocation";
 
 const StaffDashboard = () => {
     const { user } = useAuth();
     const [incidents, setIncidents] = useState([]);
+    const [responders, setResponders] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [activeFilter, setActiveFilter] = useState("all"); // all, pending, acknowledged
+
+    // Enable geolocation for staff
+    const { location: userLocation } = useGeolocation(true);
 
     useEffect(() => {
         // Request browser notification permission on load
@@ -72,9 +78,27 @@ const StaffDashboard = () => {
             );
         });
 
+        socket.on("RESPONDER_MOVED", (data) => {
+            setResponders(prev => {
+                const index = prev.findIndex(r => r.socketId === data.socketId);
+                if (index !== -1) {
+                    const newResponders = [...prev];
+                    newResponders[index] = data;
+                    return newResponders;
+                }
+                return [...prev, data];
+            });
+        });
+
+        socket.on("RESPONDER_OFFLINE", (data) => {
+            setResponders(prev => prev.filter(r => r.socketId !== data.socketId));
+        });
+
         return () => {
             socket.off("NEW_INCIDENT");
             socket.off("INCIDENT_UPDATED");
+            socket.off("RESPONDER_MOVED");
+            socket.off("RESPONDER_OFFLINE");
         };
     }, []);
 
@@ -168,6 +192,15 @@ const StaffDashboard = () => {
                     </div>
                 </div>
 
+                {/* MAP SECTION */}
+                <div className="mb-10 h-[400px] animate-fade-in-up [animation-delay:150ms]">
+                    <LiveMap 
+                        incidents={incidents.filter(i => i.status === 'pending')} 
+                        responders={responders} 
+                        userLocation={userLocation}
+                    />
+                </div>
+
                 {/* FILTER TABS */}
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-10 p-2 bg-white/40 backdrop-blur-md border border-white/60 rounded-3xl animate-fade-in-up" style={{ animationDelay: '100ms' }}>
                     <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -248,13 +281,19 @@ const StaffDashboard = () => {
 
                         <div className="bg-slate-900 rounded-[2.5rem] p-8 text-white relative overflow-hidden group">
                             <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 blur-3xl rounded-full" />
-                            <h3 className="text-sm font-black uppercase tracking-widest text-emerald-400 mb-2">Team Health</h3>
-                            <p className="text-2xl font-black mb-6">Status: Operational</p>
-                            <div className="space-y-4">
-                                <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
-                                    <div className="h-full bg-emerald-500 w-[85%] animate-pulse" />
-                                </div>
-                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Network Latency: 12ms</p>
+                            <h3 className="text-sm font-black uppercase tracking-widest text-emerald-400 mb-2">Live Fleet</h3>
+                            <p className="text-2xl font-black mb-6">{responders.length} Units Active</p>
+                            <div className="space-y-3">
+                                {responders.map(r => (
+                                    <div key={r.socketId} className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                            {r.name}
+                                        </div>
+                                        <span>{r.team}</span>
+                                    </div>
+                                ))}
+                                {responders.length === 0 && <p className="text-[10px] text-slate-500 italic">No other units in range</p>}
                             </div>
                         </div>
                     </div>

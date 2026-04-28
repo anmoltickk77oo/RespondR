@@ -7,6 +7,8 @@ import api from "../api/api";
 
 import AlertCard from "../components/AlertCard";
 import Navbar from "../components/Navbar";
+import LiveMap from "../components/LiveMap";
+import { useGeolocation } from "../hooks/useGeolocation";
 
 const AdminDashboard = () => {
     const [incidents, setIncidents] = useState([]);
@@ -18,6 +20,9 @@ const AdminDashboard = () => {
         resolved: 0,
     });
     const [isLoading, setIsLoading] = useState(true);
+
+    // Geolocation for admin (optional but enabled for full tracking)
+    const { location: userLocation } = useGeolocation(true);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -68,15 +73,29 @@ const AdminDashboard = () => {
             setIncidents((prev) =>
                 prev.map((i) => (i.id === updated.id ? updated : i))
             );
-            
-            // Re-calculate stats or update incrementally
-            // For simplicity in real-time, let's just refresh stats logic if needed
-            // but we can also just update the counts based on transition
+        });
+
+        socket.on("RESPONDER_MOVED", (data) => {
+            setResponders(prev => {
+                const index = prev.findIndex(r => r.socketId === data.socketId);
+                if (index !== -1) {
+                    const newResponders = [...prev];
+                    newResponders[index] = data;
+                    return newResponders;
+                }
+                return [...prev, data];
+            });
+        });
+
+        socket.on("RESPONDER_OFFLINE", (data) => {
+            setResponders(prev => prev.filter(r => r.socketId !== data.socketId));
         });
 
         return () => {
             socket.off("NEW_INCIDENT");
             socket.off("INCIDENT_UPDATED");
+            socket.off("RESPONDER_MOVED");
+            socket.off("RESPONDER_OFFLINE");
         };
     }, []);
 
@@ -89,6 +108,18 @@ const AdminDashboard = () => {
         } catch (error) {
             console.error("Action failed:", error);
             toast.error("Failed to update incident");
+        }
+    };
+
+    const handleResolve = async (id) => {
+        try {
+            await api.patch(`/incidents/${id}`, {
+                status: "resolved",
+            });
+            toast.success("Incident officially closed and archived");
+        } catch (error) {
+            console.error("Resolution failed:", error);
+            toast.error("Failed to close case");
         }
     };
 
@@ -152,10 +183,8 @@ const AdminDashboard = () => {
                             <StatCard icon={CheckCircle2} label="Resolution" value={`${stats.total > 0 ? Math.round((stats.resolved / stats.total) * 100) : 0}%`} color="emerald" variant="dark" />
                         </div>
 
-                        {/* GLOBAL INTELLIGENCE MAP (SIMULATED) */}
+                        {/* GLOBAL INTELLIGENCE MAP */}
                         <div className="bg-slate-900/50 rounded-[3rem] p-10 border border-white/5 relative overflow-hidden group animate-fade-in-up" style={{ animationDelay: '200ms' }}>
-                            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10 pointer-events-none" />
-                            
                             <div className="flex items-center justify-between mb-10 relative z-10">
                                 <div>
                                     <h2 className="text-2xl font-black text-white">Global Telemetry</h2>
@@ -167,46 +196,15 @@ const AdminDashboard = () => {
                                 </div>
                             </div>
 
-                            <div className="aspect-[21/9] bg-[#020617] rounded-[2rem] border border-white/5 relative overflow-hidden flex items-center justify-center">
-                                {/* SIMULATED MAP UI */}
-                                <div className="absolute inset-0 opacity-20 pointer-events-none select-none">
-                                    <svg viewBox="0 0 1000 400" className="w-full h-full stroke-blue-500/30 stroke-1 fill-none">
-                                        <path d="M100,200 Q250,100 400,200 T700,200 T1000,100" />
-                                        <path d="M0,300 Q200,350 400,250 T800,300" />
-                                        <circle cx="200" cy="150" r="2" />
-                                        <circle cx="500" cy="250" r="2" />
-                                        <circle cx="800" cy="100" r="2" />
-                                    </svg>
-                                </div>
-
-                                {/* ACTIVE INCIDENT DOTS */}
-                                {activeIncidents.map((inc, i) => (
-                                    <div 
-                                        key={inc.id}
-                                        className="absolute group/pin cursor-pointer"
-                                        style={{ 
-                                            left: `${20 + (i * 15) % 60}%`, 
-                                            top: `${30 + (i * 10) % 50}%` 
-                                        }}
-                                    >
-                                        <div className="relative flex items-center justify-center">
-                                            <div className={`absolute w-12 h-12 rounded-full ${inc.status === 'pending' ? 'bg-rose-500/20' : 'bg-blue-500/20'} animate-ping`} />
-                                            <div className={`w-3 h-3 rounded-full ${inc.status === 'pending' ? 'bg-rose-500' : 'bg-blue-500'} shadow-[0_0_20px_rgba(244,63,94,0.6)]`} />
-                                        </div>
-                                        {/* Hover Tooltip */}
-                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 px-4 py-2 bg-slate-800 border border-white/10 rounded-xl whitespace-nowrap opacity-0 group-hover/pin:opacity-100 transition-all pointer-events-none z-50">
-                                            <p className="text-[10px] font-black uppercase text-slate-400">{inc.type}</p>
-                                            <p className="text-xs font-bold text-white">{inc.location}</p>
-                                        </div>
-                                    </div>
-                                ))}
-
-                                <div className="text-slate-600 text-[10px] font-black uppercase tracking-[0.5em] animate-pulse">
-                                    [ Encrypted Data Visualization ]
-                                </div>
+                            <div className="aspect-[21/9] rounded-[2rem] border border-white/5 relative overflow-hidden">
+                                <LiveMap 
+                                    incidents={activeIncidents} 
+                                    responders={responders} 
+                                    userLocation={userLocation}
+                                />
                                 
                                 {/* SCANLINE EFFECT */}
-                                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-blue-500/5 to-transparent h-20 w-full animate-scanline pointer-events-none" />
+                                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-blue-500/5 to-transparent h-20 w-full animate-scanline pointer-events-none z-20" />
                             </div>
                         </div>
 
@@ -238,7 +236,8 @@ const AdminDashboard = () => {
                                         <AlertCard 
                                             key={inc.id} 
                                             incident={inc} 
-                                            onAcknowledge={handleAcknowledge}
+                                            onAcknowledge={inc.status === 'pending' ? handleAcknowledge : null}
+                                            onResolve={handleResolve}
                                             variant="premium"
                                         />
                                     ))
@@ -266,7 +265,7 @@ const AdminDashboard = () => {
 
                             <div className="flex-1 px-6 py-10 space-y-4 max-h-[700px] overflow-y-auto custom-scrollbar">
                                 {responders.map(u => (
-                                    <div key={u.id} className="group flex items-center gap-5 p-5 rounded-[2rem] bg-white/[0.02] border border-white/5 hover:bg-white/[0.05] hover:border-blue-500/30 transition-all duration-500 cursor-pointer relative overflow-hidden">
+                                    <div key={u.id || u.socketId} className="group flex items-center gap-5 p-5 rounded-[2rem] bg-white/[0.02] border border-white/5 hover:bg-white/[0.05] hover:border-blue-500/30 transition-all duration-500 cursor-pointer relative overflow-hidden">
                                         {/* Status indicator on hover */}
                                         <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 translate-x-[-100%] group-hover:translate-x-0 transition-transform" />
                                         

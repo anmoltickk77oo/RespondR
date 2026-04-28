@@ -7,6 +7,7 @@ import UserDashboard from './pages/UserDashboard';
 import StaffDashboard from './pages/StaffDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import { AuthContext } from './context/AuthContext';
+import OfflineHeartbeat from './components/OfflineHeartbeat';
 
 const ProtectedRoute = ({ children, role }) => {
     const { user, loading } = useContext(AuthContext);
@@ -70,6 +71,7 @@ function App() {
           },
         }}
       />
+      <OfflineHeartbeat />
       <Router>
         <div className="min-h-screen font-sans bg-slate-50">
           <Routes>
