@@ -13,6 +13,7 @@ const validate = (schema) => (req, res, next) => {
     const issues = e.issues || e.errors;
     
     if (issues) {
+      console.log('❌ Validation Error Details:', JSON.stringify(issues, null, 2));
       return res.status(400).json({
         status: 'fail',
         message: 'Validation error',

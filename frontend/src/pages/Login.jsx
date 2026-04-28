@@ -16,9 +16,9 @@ const Login = () => {
     useEffect(() => {
         if (!loading && user) {
             if (user.role === 'staff' || user.role === 'admin') {
-                navigate('/staff');
+                navigate('/staff-dashboard');
             } else {
-                navigate('/user');
+                navigate('/user-dashboard');
             }
         }
     }, [user, loading, navigate]);
@@ -39,9 +39,9 @@ const Login = () => {
             
             // Redirect based on role
             if (loggedInUser.role === 'staff' || loggedInUser.role === 'admin') {
-                navigate('/staff');
+                navigate('/staff-dashboard');
             } else {
-                navigate('/user');
+                navigate('/user-dashboard');
             }
         } catch (err) {
             const message = err.response?.data?.message || 'Authentication failed';

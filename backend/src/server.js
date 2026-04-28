@@ -23,7 +23,10 @@ const server = http.createServer(app);
 
 // 1. Security Middlewares
 app.use(helmet()); // Set security HTTP headers
-app.use(cors());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || '*',
+  credentials: true
+}));
 app.use(hpp()); // Prevent HTTP Parameter Pollution
 
 // 2. Rate Limiting
@@ -47,7 +50,11 @@ const swaggerOptions = {
       version: '1.0.0',
       description: 'Emergency response and coordination system API',
     },
-    servers: [{ url: `http://localhost:${process.env.PORT || 5000}` }],
+    servers: [
+      process.env.RENDER_EXTERNAL_URL
+        ? { url: process.env.RENDER_EXTERNAL_URL }
+        : { url: `http://localhost:${process.env.PORT || 5000}` }
+    ],
     components: {
       securitySchemes: {
         bearerAuth: {
@@ -88,7 +95,7 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5000;
 
-server.listen(PORT, () => {
-  logger.info(`🚀 Server running on http://localhost:${PORT}`);
-  logger.info(`📖 Documentation available at http://localhost:${PORT}/api-docs`);
+server.listen(PORT, '0.0.0.0', () => {
+  logger.info(`🚀 Server running on port ${PORT}`);
+  logger.info(`📖 Documentation available at /api-docs`);
 });
