@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { CheckCircle2, Clock, MapPin, AlertTriangle, Flame, Shield, Wrench, ListFilter, Activity } from "lucide-react";
+import { CheckCircle2, Clock, MapPin, AlertTriangle, Flame, Shield, Wrench, ListFilter, Activity, Search } from "lucide-react";
+import TimelineModal from "./TimelineModal";
 
 const TYPE_CONFIG = {
     "Medical Emergency": { icon: AlertTriangle, color: "text-rose-600",    glow: "shadow-glow-red",   accent: "from-rose-500/10 to-transparent",   border: "border-rose-200" },
@@ -62,130 +63,193 @@ const ROLE_TASKS = {
     ]
 };
 
-const AlertCard = ({ incident, onAcknowledge, variant = "default" }) => {
+const AlertCard = ({ incident, onAcknowledge, onResolve, variant = "default" }) => {
     const [showTasks, setShowTasks] = useState(false);
-    const typeConf = TYPE_CONFIG[incident.type] || TYPE_CONFIG["Medical Emergency"];
-    const statusConf = STATUS_CONFIG[incident.status] || STATUS_CONFIG.pending;
-    const tasks = ROLE_TASKS[incident.type] || ROLE_TASKS["Medical Emergency"];
-    const TypeIcon = typeConf.icon;
+    const [showAudit, setShowAudit] = useState(false);
 
-    const timeAgo = incident.created_at
-        ? getTimeAgo(new Date(incident.created_at))
-        : null;
+    const type = TYPE_CONFIG[incident.incident_type] || TYPE_CONFIG["Medical Emergency"];
+    const Icon = type.icon;
+    const status = STATUS_CONFIG[incident.status] || STATUS_CONFIG.pending;
+    
+    const timeAgo = incident.created_at ? getTimeAgo(new Date(incident.created_at)) : null;
 
-    const isPremium = variant === "premium";
+    if (variant === "premium") {
+        return (
+            <div className="group relative bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] border border-white/5 hover:border-blue-500/30 transition-all duration-500 overflow-hidden shadow-2xl">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                
+                <div className="p-8 relative z-10">
+                    <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-8">
+                        <div className="flex items-center gap-6">
+                            <div className="w-20 h-20 rounded-3xl bg-slate-950 border border-white/10 flex items-center justify-center shadow-inner group-hover:scale-105 transition-transform duration-500 relative">
+                                <div className={`absolute inset-0 ${type.color.replace('text', 'bg')}/10 blur-xl rounded-full`} />
+                                <Icon className={`w-10 h-10 ${type.color} relative z-10`} />
+                            </div>
+                            
+                            <div>
+                                <div className="flex items-center gap-4 mb-2">
+                                    <h3 className="text-2xl font-black text-white tracking-tight">{incident.incident_type}</h3>
+                                    <span className={`px-3 py-1 rounded-lg border text-[10px] font-black uppercase tracking-widest ${status.classes.replace('bg-rose-50', 'bg-rose-500/10').replace('text-rose-600', 'text-rose-400').replace('border-rose-100', 'border-rose-500/20')}`}>
+                                        {status.label}
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-6 text-slate-500 text-xs font-bold uppercase tracking-widest">
+                                    <div className="flex items-center gap-2">
+                                        <MapPin className="w-4 h-4 text-blue-400" />
+                                        {incident.location}
+                                    </div>
+                                    {timeAgo && (
+                                        <div className="flex items-center gap-2">
+                                            <Clock className="w-4 h-4 text-purple-400" />
+                                            {timeAgo}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-4">
+                            <button 
+                                onClick={() => setShowAudit(true)}
+                                className="px-6 py-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-white text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-3"
+                            >
+                                <Activity className="w-4 h-4 text-blue-400" />
+                                Mission Audit
+                            </button>
+
+                            {incident.status === "pending" && onAcknowledge && (
+                                <button
+                                    onClick={() => onAcknowledge(incident.id)}
+                                    className="px-8 py-3 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-black uppercase tracking-widest transition-all shadow-xl shadow-blue-600/20 active:scale-95 flex items-center gap-3"
+                                >
+                                    <CheckCircle2 className="w-4 h-4" />
+                                    Assign Unit
+                                </button>
+                            )}
+
+                            {incident.status !== "resolved" && onResolve && (
+                                <button
+                                    onClick={() => onResolve(incident.id)}
+                                    className="px-8 py-3 rounded-2xl bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white border border-emerald-500/30 text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center gap-3"
+                                >
+                                    <CheckCircle2 className="w-4 h-4" />
+                                    Close Case
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                <TimelineModal 
+                    isOpen={showAudit} 
+                    onClose={() => setShowAudit(false)} 
+                    incidentId={incident.id} 
+                />
+            </div>
+        );
+    }
 
     return (
-        <div
-            className={`group relative ${isPremium ? 'bg-slate-50/50 hover:bg-white' : 'bg-white'} rounded-[2rem] border border-slate-100 overflow-hidden transition-all duration-500 hover:scale-[1.01] hover:shadow-2xl hover:shadow-slate-200 animate-fade-in-up ${
-                incident.status === "pending" ? typeConf.glow : ""
-            }`}
-        >
-            {/* Accent gradient at top */}
-            <div className={`absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r ${typeConf.accent}`} />
-
-            <div className="p-6 sm:p-8">
-                {/* Top row: Type + Status */}
-                <div className="flex items-start justify-between gap-4 mb-6">
-                    <div className="flex items-center gap-5">
-                        <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${typeConf.accent} flex items-center justify-center border ${typeConf.border} shadow-sm group-hover:scale-110 transition-transform duration-500`}>
-                            <TypeIcon className={`w-6 h-6 ${typeConf.color}`} />
+        <div className={`relative group animate-fade-in-up`}>
+            <div className={`absolute inset-0 bg-gradient-to-br ${type.accent} opacity-0 group-hover:opacity-100 transition-opacity duration-700 rounded-[2.5rem]`} />
+            
+            <div className={`relative bg-white/80 backdrop-blur-xl p-8 rounded-[2.5rem] border ${type.border} shadow-xl shadow-slate-200/50 hover:shadow-2xl hover:shadow-slate-300/50 transition-all duration-500`}>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
+                    <div className="flex items-start gap-6">
+                        <div className={`w-16 h-16 rounded-2xl bg-white shadow-lg ${type.glow} flex items-center justify-center border border-slate-50 shrink-0 group-hover:scale-110 transition-transform duration-500`}>
+                            <Icon className={`w-8 h-8 ${type.color}`} />
                         </div>
+                        
                         <div>
-                            <h3 className="text-xl font-black text-slate-900 leading-tight tracking-tight">
-                                {incident.type || "Emergency"}
-                            </h3>
-                            <div className="flex items-center gap-2 mt-1.5">
-                                <div className="w-4 h-4 rounded-full bg-slate-100 flex items-center justify-center">
-                                    <MapPin className="w-2.5 h-2.5 text-slate-500" />
+                            <div className="flex items-center gap-3 mb-2">
+                                <h3 className="text-xl font-black text-slate-900 tracking-tight">{incident.incident_type}</h3>
+                                <div className={`px-3 py-1 rounded-full border ${status.classes} flex items-center gap-2`}>
+                                    <div className={`w-1.5 h-1.5 rounded-full ${status.dot} animate-pulse`} />
+                                    <span className="text-[9px] font-black uppercase tracking-widest">{status.label}</span>
                                 </div>
-                                <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">
-                                    {incident.location || "Sector 7-G"}
-                                </p>
+                            </div>
+                            
+                            <div className="flex flex-wrap items-center gap-4 text-slate-400">
+                                <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">
+                                    <MapPin className="w-3 h-3 text-rose-500" />
+                                    <span className="text-[10px] font-black text-slate-600 uppercase tracking-tight">{incident.location}</span>
+                                </div>
+                                {timeAgo && (
+                                    <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">
+                                        <Clock className="w-3 h-3 text-blue-500" />
+                                        <span className="text-[10px] font-black text-slate-600 uppercase tracking-tight">{timeAgo}</span>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
-
-                    {/* Status Badge */}
-                    <div className="flex flex-col items-end gap-2">
-                        <span className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all duration-300 ${statusConf.classes}`}>
-                            <span className={`w-2 h-2 rounded-full ${statusConf.dot} ${incident.status === "pending" ? "animate-pulse" : ""}`} />
-                            {statusConf.label}
-                        </span>
-                    </div>
-                </div>
-
-                {/* Description if available */}
-                {incident.description && (
-                    <p className="text-sm text-slate-600 mb-6 line-clamp-2 font-medium bg-slate-50/50 p-4 rounded-2xl border border-slate-100/50">
-                        "{incident.description}"
-                    </p>
-                )}
-
-                {/* TASK LIST SECTION */}
-                <div className={`mb-6 transition-all duration-500 overflow-hidden ${showTasks ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-4 flex items-center gap-2">
-                        <ListFilter size={12} />
-                        Response Protocol
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {tasks.map((task, idx) => (
-                            <div key={idx} className="flex items-center gap-3 p-4 rounded-2xl bg-white border border-slate-100 hover:border-rose-100 hover:bg-rose-50/30 transition-all group/task shadow-sm">
-                                <div className="w-6 h-6 rounded-lg border-2 border-slate-200 bg-slate-50 flex items-center justify-center group-hover/task:border-rose-400 transition-colors">
-                                    <div className="w-2.5 h-2.5 rounded-sm bg-rose-500 opacity-0 group-hover/task:opacity-100 transition-opacity" />
-                                </div>
-                                <span className="text-xs font-bold text-slate-600 group-hover/task:text-slate-900 transition-colors">
-                                    {task}
-                                </span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Meta row + Protocol Toggle */}
-                <div className="flex items-center justify-between gap-6">
-                    {(timeAgo || incident.id) && (
-                        <div className="flex items-center gap-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                            {incident.id && (
-                                <span className="flex items-center gap-2 bg-slate-50 px-3 py-1 rounded-lg border border-slate-100 font-mono">
-                                    <span className="text-slate-300 text-[8px]">UNIT</span> #{String(incident.id).padStart(4, "0")}
-                                </span>
-                            )}
-                            {timeAgo && (
-                                <span className="flex items-center gap-2">
-                                    <Clock className="w-3 h-3 text-slate-300" />
-                                    {timeAgo}
-                                </span>
-                            )}
-                        </div>
-                    )}
 
                     <div className="flex items-center gap-3">
                         <button 
+                            onClick={() => setShowAudit(true)}
+                            className="p-3 bg-slate-50 text-slate-400 hover:text-slate-900 hover:bg-white hover:shadow-md rounded-xl border border-slate-100 transition-all"
+                            title="Mission Audit"
+                        >
+                            <Clock className="w-5 h-5" />
+                        </button>
+                        
+                        <button 
                             onClick={() => setShowTasks(!showTasks)}
-                            className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl border transition-all duration-300 ${showTasks ? 'bg-slate-900 text-white border-slate-900 shadow-lg shadow-slate-200' : 'bg-white text-slate-400 border-slate-100 hover:border-slate-300'}`}
+                            className={`text-[10px] font-black uppercase tracking-widest px-6 py-3 rounded-xl border transition-all duration-300 ${showTasks ? 'bg-slate-900 text-white border-slate-900 shadow-lg shadow-slate-200' : 'bg-white text-slate-400 border-slate-100 hover:border-slate-300'}`}
                         >
                             {showTasks ? 'Hide Protocol' : 'View Protocol'}
                         </button>
                         
-                        {incident.status === "pending" && (
+                        {incident.status === "pending" && onAcknowledge && (
                             <button
                                 onClick={() => onAcknowledge(incident.id)}
-                                className="group/btn flex items-center justify-center gap-3 px-6 py-2 bg-slate-900 hover:bg-emerald-600 text-white text-[10px] font-black rounded-xl transition-all duration-300 shadow-xl shadow-slate-200 active:scale-[0.98] uppercase tracking-widest"
+                                className="group/btn flex items-center justify-center gap-3 px-8 py-3 bg-slate-900 hover:bg-emerald-600 text-white text-[10px] font-black rounded-xl transition-all duration-300 shadow-xl shadow-slate-200 active:scale-[0.98] uppercase tracking-widest"
                             >
                                 <CheckCircle2 className="w-4 h-4 transition-transform group-hover/btn:scale-110" />
                                 Deploy Response
                             </button>
                         )}
+
+                        {incident.status !== "resolved" && onResolve && (
+                            <button
+                                onClick={() => onResolve(incident.id)}
+                                className="group/btn flex items-center justify-center gap-3 px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black rounded-xl transition-all duration-300 shadow-xl shadow-emerald-200 active:scale-[0.98] uppercase tracking-widest"
+                            >
+                                <CheckCircle2 className="w-4 h-4 transition-transform group-hover/btn:scale-110" />
+                                Close Case
+                            </button>
+                        )}
                     </div>
                 </div>
+
+                {showTasks && (
+                    <div className="mt-8 pt-8 border-t border-slate-100 animate-fade-in">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {(ROLE_TASKS[incident.incident_type] || []).map((task, idx) => (
+                                <div key={idx} className="flex items-center gap-4 p-4 bg-slate-50/50 rounded-2xl border border-slate-100 group/task cursor-pointer hover:bg-white hover:border-emerald-200 transition-all">
+                                    <div className="w-6 h-6 rounded-full border-2 border-slate-200 flex items-center justify-center group-hover/task:border-emerald-500 transition-colors">
+                                        <div className="w-2 h-2 rounded-full bg-emerald-500 opacity-0 group-hover/task:opacity-100 transition-opacity" />
+                                    </div>
+                                    <span className="text-xs font-bold text-slate-600 group-hover/task:text-slate-900 transition-colors">{task}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
+
+            <TimelineModal 
+                isOpen={showAudit} 
+                onClose={() => setShowAudit(false)} 
+                incidentId={incident.id} 
+            />
         </div>
     );
 };
 
 /* ── Helper ── */
 function getTimeAgo(date) {
+    if (!date || isNaN(date.getTime())) return null;
     const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
     if (seconds < 60) return "Just now";
     const minutes = Math.floor(seconds / 60);

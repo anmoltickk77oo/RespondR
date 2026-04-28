@@ -1,6 +1,7 @@
 const { getIncidents, updateIncidentStatus } = require('../models/incidentModel');
 const { getIo } = require('../sockets/index');
 const { sendAcknowledgementEmail } = require('../services/emailService');
+const { logIncidentEvent, getIncidentTimeline } = require('../services/auditService');
 const logger = require('../utils/logger');
 
 const getAllIncidents = async (req, res) => {
@@ -27,6 +28,7 @@ const updateIncident = async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
+    const userId = req.user.id;
 
     if (!status) {
       return res.status(400).json({ status: 'fail', message: 'Status is required to update.' });
@@ -38,14 +40,17 @@ const updateIncident = async (req, res) => {
       return res.status(404).json({ status: 'fail', message: 'Incident not found' });
     }
 
-    // 1. If acknowledged, send email to the user who triggered it
+    // 1. Evidence-Based Auditing: Log the status change
+    await logIncidentEvent(id, status.toUpperCase(), userId, { previousStatus: updatedIncident.status });
+
+    // 2. If acknowledged, send email to the user who triggered it
     if (status === 'acknowledged' && updatedIncident.user_email) {
         sendAcknowledgementEmail(updatedIncident).catch(err => 
             logger.error('Acknowledgement Email Error: %o', err)
         );
     }
 
-    // 2. Blast the real-time event so dashboards update
+    // 3. Blast the real-time event so dashboards update
     const io = getIo();
     const targetTeam = updatedIncident.incident_type.toLowerCase().includes('medical') ? 'medical' :
                       updatedIncident.incident_type.toLowerCase().includes('fire') ? 'fire' :
@@ -54,9 +59,6 @@ const updateIncident = async (req, res) => {
 
     io.to(`room:${targetTeam}`).emit('INCIDENT_UPDATED', updatedIncident);
     io.to('room:admin').emit('INCIDENT_UPDATED', updatedIncident);
-    
-    // Also emit to the user who reported it (in their private room if we implement it, but for now just broadcast to all if needed or specific room)
-    // For now, let's just use the team and admin rooms as required.
 
     res.status(200).json({
       status: 'success',
@@ -69,4 +71,16 @@ const updateIncident = async (req, res) => {
   }
 };
 
-module.exports = { getAllIncidents, updateIncident };
+const getTimeline = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const timeline = await getIncidentTimeline(id);
+    res.status(200).json({ status: 'success', timeline });
+  } catch (error) {
+    logger.error('Error fetching timeline: %o', error);
+    res.status(500).json({ status: 'error', message: 'Server error fetching timeline' });
+  }
+};
+
+module.exports = { getAllIncidents, updateIncident, getTimeline };
+

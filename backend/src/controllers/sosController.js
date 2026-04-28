@@ -2,6 +2,7 @@ const { createIncident } = require('../models/incidentModel');
 const { getIo } = require('../sockets/index');
 const { sendSMSAlert } = require('../services/smsService');
 const { sendEmailAlert } = require('../services/emailService');
+const { logIncidentEvent } = require('../services/auditService');
 
 const triggerSOS = async (req, res) => {
   try {
@@ -17,7 +18,10 @@ const triggerSOS = async (req, res) => {
     // 2. Save the emergency to PostgreSQL
     const newIncident = await createIncident(userId, location, incidentType);
 
-    // 3. The Magic: Blast the real-time event to targeted rooms
+    // 3. Evidence-Based Auditing: Log the initial trigger
+    await logIncidentEvent(newIncident.id, 'TRIGGERED', userId, { location, type: incidentType });
+
+    // 4. The Magic: Blast the real-time event to targeted rooms
     const io = getIo();
     
     // Normalize team name for room emission

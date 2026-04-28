@@ -1,28 +1,31 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { useContext } from 'react';
 import Login from './pages/Login';
 import UserDashboard from './pages/UserDashboard';
 import StaffDashboard from './pages/StaffDashboard';
 import AdminDashboard from './pages/AdminDashboard';
+import { AuthContext } from './context/AuthContext';
+import OfflineHeartbeat from './components/OfflineHeartbeat';
 
 const ProtectedRoute = ({ children, role }) => {
     const { user, loading } = useAuth();
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="w-12 h-12 rounded-2xl glass flex items-center justify-center animate-pulse">
-                    <div className="w-5 h-5 rounded-full bg-red-500/50 animate-ping" />
+            <div className="min-h-screen flex items-center justify-center bg-slate-50">
+                <div className="w-12 h-12 rounded-2xl glass flex items-center justify-center animate-pulse border border-white shadow-xl">
+                    <div className="w-5 h-5 rounded-full bg-rose-500/50 animate-ping" />
                 </div>
             </div>
         );
     }
-    if (!user) return <Navigate to="/login" />;
+    if (!user) return <Navigate to="/login" replace />;
     
     // If a specific role is required and user doesn't have it, redirect to their own dashboard
     if (role && user.role !== role) {
-        return <Navigate to="/" />;
+        return <Navigate to="/" replace />;
     }
 
     return children;
@@ -71,13 +74,23 @@ function App() {
           },
         }}
       />
+      <OfflineHeartbeat />
       <Router>
-        <div className="min-h-screen font-sans">
+        <div className="min-h-screen font-sans bg-slate-50">
           <Routes>
             {/* Public Routes */}
-            <Route path="/" element={<DashboardRouter />} />
             <Route path="/login" element={<Login />} />
             
+            {/* Entry point that redirects based on role */}
+            <Route 
+              path="/" 
+              element={
+                <ProtectedRoute>
+                  <DashboardRouter />
+                </ProtectedRoute>
+              } 
+            />
+
             {/* Unique Dashboards */}
             <Route 
               path="/user-dashboard" 

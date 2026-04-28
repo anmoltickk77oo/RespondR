@@ -10,8 +10,10 @@ const SOSButton = ({ location, incidentType }) => {
         setStatus('loading');
         const toastId = toast.loading('Sending emergency alert...');
 
+        const payload = { location, incidentType };
+
         try {
-            await api.post('/sos', { location, incidentType });
+            await api.post('/sos', payload);
 
             setStatus('success');
             toast.success('Alert broadcasted! Help is on the way.', { id: toastId });
@@ -20,6 +22,23 @@ const SOSButton = ({ location, incidentType }) => {
             setTimeout(() => setStatus('idle'), 4000);
         } catch (error) {
             console.error('SOS Error:', error);
+            
+            // If we're offline, queue it!
+            if (!navigator.onLine) {
+                const pending = JSON.parse(localStorage.getItem('pending_sos') || '[]');
+                pending.push(payload);
+                localStorage.setItem('pending_sos', JSON.stringify(pending));
+                
+                setStatus('success'); // Show success even if queued, but with specific toast
+                toast.success('Offline: Signal queued. Help is on the way!', { 
+                    id: toastId,
+                    duration: 6000,
+                    icon: '📡'
+                });
+                setTimeout(() => setStatus('idle'), 4000);
+                return;
+            }
+
             setStatus('error');
             toast.error('Failed to send alert. Please try again or call 911.', { id: toastId });
             setTimeout(() => setStatus('idle'), 4000);

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import toast from "react-hot-toast";
-import { Loader2, Siren, ShieldCheck, ListFilter, CheckCircle2 } from "lucide-react";
+import { Loader2, Siren, ShieldCheck, ListFilter, CheckCircle2, Volume2, Radio } from "lucide-react";
 
 import { socket } from "../socket/socket";
 import api from "../api/api";
@@ -8,18 +8,26 @@ import api from "../api/api";
 import AlertCard from "../components/AlertCard";
 import Navbar from "../components/Navbar";
 import { useAuth } from "../context/AuthContext";
+import LiveMap from "../components/LiveMap";
+import { useGeolocation } from "../hooks/useGeolocation";
+
 
 const StaffDashboard = () => {
     const { user } = useAuth();
     const [incidents, setIncidents] = useState([]);
+    const [responders, setResponders] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [activeFilter, setActiveFilter] = useState("all"); // all, pending, acknowledged
+
+    // Enable geolocation for staff
+    const { location: userLocation } = useGeolocation(true);
 
     useEffect(() => {
         // 1. Request browser notification permission on load
         if ('Notification' in window && Notification.permission !== 'granted') {
             Notification.requestPermission();
         }
+
         const fetchIncidents = async () => {
             try {
                 const response = await api.get("/incidents");
@@ -37,6 +45,7 @@ const StaffDashboard = () => {
         // 2. Listen for new incidents
         socket.on('NEW_INCIDENT', (newIncident) => {
             console.log('🚨 NEW INCIDENT RECEIVED:', newIncident);
+
             setIncidents((prev) => [newIncident, ...prev]);
 
             // Play audio alert for 3 seconds
@@ -56,7 +65,7 @@ const StaffDashboard = () => {
                 position: 'top-center',
             });
 
-            // 3. Trigger the native browser pop-up
+            // Trigger the native browser pop-up
             if ('Notification' in window && Notification.permission === 'granted') {
                 new Notification('🚨 RespondR Emergency', {
                     body: `${newIncident.incident_type} reported at ${newIncident.location}`,
@@ -68,6 +77,7 @@ const StaffDashboard = () => {
         // Listen for incident updates (e.g., status changes)
         socket.on('INCIDENT_UPDATED', (updatedIncident) => {
             console.log('🔄 INCIDENT UPDATED:', updatedIncident);
+
             setIncidents((prev) =>
                 prev.map((inc) =>
                     inc.id === updatedIncident.id ? updatedIncident : inc
@@ -75,9 +85,27 @@ const StaffDashboard = () => {
             );
         });
 
+        socket.on("RESPONDER_MOVED", (data) => {
+            setResponders(prev => {
+                const index = prev.findIndex(r => r.socketId === data.socketId);
+                if (index !== -1) {
+                    const newResponders = [...prev];
+                    newResponders[index] = data;
+                    return newResponders;
+                }
+                return [...prev, data];
+            });
+        });
+
+        socket.on("RESPONDER_OFFLINE", (data) => {
+            setResponders(prev => prev.filter(r => r.socketId !== data.socketId));
+        });
+
         return () => {
             socket.off("NEW_INCIDENT");
             socket.off("INCIDENT_UPDATED");
+            socket.off("RESPONDER_MOVED");
+            socket.off("RESPONDER_OFFLINE");
         };
     }, []);
 
@@ -91,6 +119,16 @@ const StaffDashboard = () => {
             console.error("Failed to acknowledge incident:", error);
             toast.error("Action failed. Try again.");
         }
+    };
+
+    const handleTestSound = () => {
+        const audio = new Audio('/MKBAaagAlert.mp3');
+        audio.play()
+            .then(() => toast.success('Audio system active!'))
+            .catch(e => {
+                console.error('Audio test failed:', e);
+                toast.error('Browser blocked audio. Click anywhere first.');
+            });
     };
 
     // Derived stats
@@ -126,9 +164,18 @@ const StaffDashboard = () => {
                             </div>
                         </div>
                         <div>
-                            <h1 className="text-4xl font-black text-slate-900 tracking-tight">
-                                {user?.team ? user.team.charAt(0).toUpperCase() + user.team.slice(1) : 'Response'} <span className="text-emerald-600">Command</span>
-                            </h1>
+                            <div className="flex items-center gap-3">
+                                <h1 className="text-4xl font-black text-slate-900 tracking-tight">
+                                    {user?.team ? user.team.charAt(0).toUpperCase() + user.team.slice(1) : 'Response'} <span className="text-emerald-600">Command</span>
+                                </h1>
+                                <button
+                                    onClick={handleTestSound}
+                                    className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
+                                    title="Test Alert Sound"
+                                >
+                                    <Volume2 className="w-5 h-5" />
+                                </button>
+                            </div>
                             <p className="text-slate-500 mt-2 max-w-md font-medium leading-relaxed">
                                 Live emergency monitoring system. Monitor, acknowledge, and coordinate responses in real-time.
                             </p>
@@ -150,6 +197,16 @@ const StaffDashboard = () => {
                             <p className="text-2xl font-black text-emerald-600">{stats.acknowledged}</p>
                         </div>
                     </div>
+                </div>
+
+                {/* MAP SECTION */}
+                <div className="mb-10 h-[400px] animate-fade-in-up [animation-delay:150ms]">
+                    <LiveMap 
+                        incidents={incidents.filter(i => i.status === 'pending')} 
+                        responders={responders} 
+                        userLocation={userLocation}
+                    />
+
                 </div>
 
                 {/* FILTER TABS */}
@@ -232,13 +289,19 @@ const StaffDashboard = () => {
 
                         <div className="bg-slate-900 rounded-[2.5rem] p-8 text-white relative overflow-hidden group">
                             <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 blur-3xl rounded-full" />
-                            <h3 className="text-sm font-black uppercase tracking-widest text-emerald-400 mb-2">Team Health</h3>
-                            <p className="text-2xl font-black mb-6">Status: Operational</p>
-                            <div className="space-y-4">
-                                <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
-                                    <div className="h-full bg-emerald-500 w-[85%] animate-pulse" />
-                                </div>
-                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Network Latency: 12ms</p>
+                            <h3 className="text-sm font-black uppercase tracking-widest text-emerald-400 mb-2">Live Fleet</h3>
+                            <p className="text-2xl font-black mb-6">{responders.length} Units Active</p>
+                            <div className="space-y-3">
+                                {responders.map(r => (
+                                    <div key={r.socketId} className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                            {r.name}
+                                        </div>
+                                        <span>{r.team}</span>
+                                    </div>
+                                ))}
+                                {responders.length === 0 && <p className="text-[10px] text-slate-500 italic">No other units in range</p>}
                             </div>
                         </div>
                     </div>

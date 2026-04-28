@@ -1,9 +1,10 @@
 import { useContext, useState, useEffect } from 'react';
 import { AuthContext } from '../context/AuthContext';
-import { MapPin, AlertTriangle, ChevronDown, History, ShieldAlert, Navigation, Zap, PhoneCall, Clock, CheckCircle2, Loader2 } from 'lucide-react';
+import { MapPin, AlertTriangle, History, Navigation, Zap, PhoneCall, Clock, CheckCircle2, Loader2 } from 'lucide-react';
 import SOSButton from '../components/SOSButton';
 import Navbar from '../components/Navbar';
 import api from '../api/api';
+import { socket } from '../socket/socket';
 
 const UserDashboard = () => {
     const { user } = useContext(AuthContext);
@@ -25,6 +26,16 @@ const UserDashboard = () => {
             }
         };
         fetchHistory();
+
+        socket.on('INCIDENT_UPDATED', (updated) => {
+            setRecentIncidents(prev => 
+                prev.map(inc => inc.id === updated.id ? updated : inc)
+            );
+        });
+
+        return () => {
+            socket.off('INCIDENT_UPDATED');
+        };
     }, []);
 
     const quickActions = [
@@ -162,7 +173,7 @@ const UserDashboard = () => {
                                                 {inc.status === 'pending' ? <Clock className="w-6 h-6" /> : <CheckCircle2 className="w-6 h-6" />}
                                             </div>
                                             <div className="flex-1">
-                                                <p className="text-lg font-black text-slate-900 tracking-tight">{inc.type}</p>
+                                                <p className="text-lg font-black text-slate-900 tracking-tight">{inc.incident_type}</p>
                                                 <p className="text-xs text-slate-400 font-bold uppercase tracking-tighter flex items-center gap-2 mt-1">
                                                     <MapPin className="w-3 h-3 text-slate-300" /> {inc.location} • {new Date(inc.created_at || inc.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                 </p>
