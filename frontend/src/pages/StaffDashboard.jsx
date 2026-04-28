@@ -49,7 +49,7 @@ const StaffDashboard = () => {
             setIncidents((prev) => [newIncident, ...prev]);
 
             // Play audio alert for 3 seconds
-            const audio = new Audio('/MKBAaagAlert.mp3');
+            const audio = new Audio('/sos.mp3');
             audio.loop = true;
             audio.play().catch(e => {
                 console.error('🚨 Audio play blocked by browser. User must interact with the page first:', e.message);
@@ -122,7 +122,7 @@ const StaffDashboard = () => {
     };
 
     const handleTestSound = () => {
-        const audio = new Audio('/MKBAaagAlert.mp3');
+        const audio = new Audio('/sos.mp3');
         audio.play()
             .then(() => toast.success('Audio system active!'))
             .catch(e => {
